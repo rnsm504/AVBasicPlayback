@@ -97,6 +97,11 @@
 					8C725BE91F773F6300B3A1D1 = {
 						CreatedOnToolsVersion = 9.0;
 						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -277,6 +282,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = D2R737286R;
 				INFOPLIST_FILE = AVBasicPlayback/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.blogspot.rnsm504.AVBasicPlayback;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -292,6 +298,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = D2R737286R;
 				INFOPLIST_FILE = AVBasicPlayback/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.3;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = jp.blogspot.rnsm504.AVBasicPlayback;
 				PRODUCT_NAME = "$(TARGET_NAME)";
