@@ -102,16 +102,15 @@ class ViewController: UIViewController {
     
     @IBAction  func onClickNext(_ sender : AnyObject) {
 
-        self.nextTrack(sender as AnyObject)
+        nextTrack(sender as AnyObject)
     }
     
  
     @IBAction func onClickBack(_ sender : AnyObject) {
         
-       self.backTrack(sender as AnyObject)
+       backTrack(sender as AnyObject)
     }
 
-    
     
     @objc func play(_ sender : AnyObject) {
         
