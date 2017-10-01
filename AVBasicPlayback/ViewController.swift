@@ -11,31 +11,52 @@ import AVKit
 import AVFoundation
 import MediaPlayer
 
+enum playerStateType {
+    case play
+    case pause
+    case next
+}
+
+class PlayerState {
+    var state : playerStateType
+    
+    init() {
+        state = playerStateType.pause
+    }
+}
+
 class ViewController: UIViewController {
     
-    var movieId : URL!
-
+    var playerState : PlayerState!
+    var mvm : MusicVideosManager!
+    
+    @IBOutlet weak var playerView: PlayerView!
+    @IBOutlet weak var titleLbl: UILabel!
+    @IBOutlet weak var playButton: UIButton!
+    @IBOutlet weak var nextButton: UIButton!
+    @IBOutlet weak var backButton: UIButton!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        let albumQuery = MPMediaQuery.songs()
-        let albums = albumQuery.collections as [MPMediaItemCollection]!
+        // 初期化
+        mvm = MusicVideosManager()
+        playerState = PlayerState()
         
-        guard (albumQuery.collections as [MPMediaItemCollection]!) != nil else {
-            return
+        //行数制御なし
+        titleLbl.numberOfLines = 0
+        // 自動的に改行
+        titleLbl.sizeToFit()
+    
+        if(mvm.musicVideos.count > 0) {
+            initilize()
+        } else {
+            //ビデオがない場合は操作不能
+            playButton.isEnabled = false
+            nextButton.isEnabled = false
+            backButton.isEnabled = false
         }
-        
-        for album in albums! {
-            let rv = album.representativeItem?.mediaType.rawValue
-            if(rv == 2049 || rv == 2048){
-                movieId = album.representativeItem?.assetURL
-            }
-//            print(album.representativeItem?.title ?? "")
-//            print(album.representativeItem?.mediaType ?? "")
-        }
-        
-        UIApplication.shared.beginReceivingRemoteControlEvents()
     }
 
     override func didReceiveMemoryWarning() {
@@ -43,54 +64,111 @@ class ViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
 
-
-    @IBAction func playVideo(_ sender: Any) {
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+    }
     
-//        guard let url = URL(string: "https://devimages.apple.com.edgekey.net/samplecode/avfoundationMedia/AVFoundationQueuePlayer_HLS2/master.m3u8") else {
-//            return
-//        }
+    func initilize() {
+        // ロック画面でのボタン操作と処理
+        let commandCenter = MPRemoteCommandCenter.shared()
+        commandCenter.playCommand.addTarget(self, action: #selector(ViewController.play(_:)))
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget(self, action: #selector(ViewController.play(_:)))
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget(self, action: #selector(ViewController.nextTrack(_:)))
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget(self, action: #selector(ViewController.backTrack(_:)))
+        commandCenter.previousTrackCommand.isEnabled = true
         
-        try! AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
-        
-        do {
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("fatalError")
-            fatalError()
-        }
-        
-        // Create an AVPlayer, passing it the HTTP Live Streaming URL.
-        let player = AVPlayer(url: movieId)
-        let playerItem = player.currentItem
-
-        let tracks = playerItem?.tracks
-        for playerItemTrack in tracks! {
-            if playerItemTrack.assetTrack.hasMediaCharacteristic(AVMediaCharacteristic.visual) {
-                playerItemTrack.isEnabled = false
-            }
-        }
+        let url = (mvm.musicVideos[0] as! Album).url as URL
+        let player = AVPlayer(url: url)
+        let title = (mvm.musicVideos[0] as! Album).title as String
+        playerView.player = player
+        titleLbl.text = title
         
         let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
-        
-        let playerView = PlayerView()
-        
-        
-        self.view = playerView
-        (self.view.layer as! AVPlayerLayer).player = player
-        
         appDelegate.player = player
         appDelegate.playerView = playerView
-
-        player.play()
-        
-        // Create a new AVPlayerViewController and pass it a reference to the player.
-//        let controller = AVPlayerViewController()
-//        controller.player = player
-//
-//        // Modally present the player and call the player's play() method when complete.
-//        present(controller, animated: true) {
-//            player.play()
-//        }
     }
+    
+
+    @IBAction func playVideo(_ sender: Any) {
+        
+        play(sender as AnyObject)
+        
+    }
+    
+    
+    @IBAction  func onClickNext(_ sender : AnyObject) {
+
+        self.nextTrack(sender as AnyObject)
+    }
+    
+ 
+    @IBAction func onClickBack(_ sender : AnyObject) {
+        
+       self.backTrack(sender as AnyObject)
+    }
+
+    
+    
+    @objc func play(_ sender : AnyObject) {
+        
+        if(self.playerState.state == .play) {
+            viewSet(action: .pause)
+        } else if(self.playerState.state == .pause) {
+            viewSet(action: .play)
+        }
+    }
+    
+    
+    @objc func nextTrack(_ sender: AnyObject) {
+        
+        mvm.next()
+        
+        viewSet(action: .next)
+    }
+    
+    @objc func backTrack(_ sender: AnyObject) {
+        
+        mvm.back()
+        
+        viewSet(action: .next)
+    }
+    
+    private func viewSet(action : playerStateType) {
+
+        let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
+
+        switch action {
+        case .next:
+            appDelegate.player.pause()
+            
+            playerView.player = mvm.player
+            let title = (mvm.musicVideos[mvm.index] as! Album).title as String
+            titleLbl.text = title
+            
+            playerView.player?.play()
+            self.playerState.state = .play
+            
+            appDelegate.player = playerView.player
+            playButton.setTitle("pause", for: .normal)
+            break;
+        case .pause:
+            appDelegate.player?.pause()
+            self.playerState.state = .pause
+            playButton.setTitle("play", for: .normal)
+            break;
+        case .play:
+            appDelegate.player?.play()
+            self.playerState.state = .play
+            playButton.setTitle("pause", for: .normal)
+            break;
+        }
+        
+        
+    }
+    
 }
 
