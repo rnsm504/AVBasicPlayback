@@ -29,12 +29,17 @@ class ViewController: UIViewController {
     
     var playerState : PlayerState!
     var mvm : MusicVideosManager!
+    var playerItem : AVPlayerItem!
+    var timeObserverToken: AnyObject?
     
     @IBOutlet weak var playerView: PlayerView!
     @IBOutlet weak var titleLbl: UILabel!
     @IBOutlet weak var playButton: UIButton!
     @IBOutlet weak var nextButton: UIButton!
     @IBOutlet weak var backButton: UIButton!
+    @IBOutlet weak var videoSeekBar: UISlider!
+    @IBOutlet weak var maxTimeLbl: UILabel!
+    @IBOutlet weak var nowTimeLbl: UILabel!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -43,6 +48,9 @@ class ViewController: UIViewController {
         // 初期化
         mvm = MusicVideosManager()
         playerState = PlayerState()
+        
+        maxTimeLbl.text = ""
+        nowTimeLbl.text = ""
         
         //行数制御なし
         titleLbl.numberOfLines = 0
@@ -69,6 +77,8 @@ class ViewController: UIViewController {
         
     }
     
+    
+    /// 初期設定
     func initilize() {
         // ロック画面でのボタン操作と処理
         let commandCenter = MPRemoteCommandCenter.shared()
@@ -83,6 +93,7 @@ class ViewController: UIViewController {
         
         let url = (mvm.musicVideos[0] as! Album).url as URL
         let player = AVPlayer(url: url)
+
         let title = (mvm.musicVideos[0] as! Album).title as String
         playerView.player = player
         titleLbl.text = title
@@ -90,6 +101,8 @@ class ViewController: UIViewController {
         let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
         appDelegate.player = player
         appDelegate.playerView = playerView
+        
+        sliderSet()
     }
     
 
@@ -136,38 +149,113 @@ class ViewController: UIViewController {
         viewSet(action: .next)
     }
     
+    
+    /// ロジック部分
+    ///
+    /// - Parameter action: playerStateType
     private func viewSet(action : playerStateType) {
 
         let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
 
         switch action {
         case .next:
+            //次（前）の動画再生
             appDelegate.player.pause()
             
             playerView.player = mvm.player
             let title = (mvm.musicVideos[mvm.index] as! Album).title as String
             titleLbl.text = title
+            appDelegate.player = playerView.player
+            
+            sliderSet()
             
             playerView.player?.play()
             self.playerState.state = .play
             
-            appDelegate.player = playerView.player
             playButton.setTitle("pause", for: .normal)
             break;
         case .pause:
+            // 動画停止
             appDelegate.player?.pause()
             self.playerState.state = .pause
             playButton.setTitle("play", for: .normal)
             break;
         case .play:
+            // 再生
             appDelegate.player?.play()
             self.playerState.state = .play
             playButton.setTitle("pause", for: .normal)
             break;
         }
+    }
+
+    /// 動画の再生時間に合わせてsliderを初期化
+    func sliderSet() {
+        //画面初期化
+        self.videoSeekBar.value = self.videoSeekBar.minimumValue
+        self.view.setNeedsDisplay()
         
+        let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
+        let player = appDelegate.player
         
+        NotificationCenter.default.addObserver(self, selector: #selector(ViewController.onVideoEnd(_:)), name:NSNotification.Name.AVPlayerItemDidPlayToEndTime , object: player?.currentItem)
+        
+        // 時間
+        let duration = player?.currentItem?.asset.duration
+        let maxTime = CMTimeGetSeconds(duration!)
+        
+        videoSeekBar.minimumValue = 0.0
+        videoSeekBar.maximumValue = Float(maxTime)
+        let interval = Double(videoSeekBar.maximumValue)/Double(videoSeekBar.bounds.maxX)
+        let time : CMTime = CMTimeMakeWithSeconds(interval, Int32(NSEC_PER_SEC))
+       
+        // 時分に直す
+        let date = Date(timeIntervalSince1970: maxTime)
+        let format = DateFormatter()
+        format.timeZone =  NSTimeZone(name: "GMT")! as TimeZone
+        format.dateFormat = "HH:mm:ss"
+        maxTimeLbl.text = format.string(from: date)
+        
+        // timeごとに呼び出す
+        timeObserverToken = player?.addPeriodicTimeObserver(forInterval: time, queue: nil) { (time) in
+            let time = CMTimeGetSeconds((player?.currentTime())!)
+            let value = Float(self.videoSeekBar.maximumValue) * Float(time)/Float(maxTime)
+            self.videoSeekBar.value = value
+            let date = Date(timeIntervalSince1970: time)
+            //再生中時間
+            self.nowTimeLbl.text = format.string(from: date)
+            } as AnyObject
     }
     
+    /// 動画の終わりに呼び出される
+    ///
+    /// - Parameter sender: AnyObject
+    @objc func onVideoEnd(_ sender: AnyObject) {
+        
+        let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
+
+        if let _timeObserverToken = timeObserverToken {
+            appDelegate.player?.removeTimeObserver(_timeObserverToken)
+            self.timeObserverToken = nil
+        }
+        // 次の動画
+        mvm.next()
+        viewSet(action: .next)
+    }
+    
+    /// スライドを動かした時に呼び出される
+    ///
+    /// - Parameter sender: UISliser
+    @IBAction func slide(_ sender: UISlider) {
+        
+//        print(sender.value)
+        self.videoSeekBar.value = sender.value
+        let time = CMTimeMakeWithSeconds(Float64(sender.value), Int32(NSEC_PER_SEC))
+        
+        let appDelegate:AppDelegate = UIApplication.shared.delegate as! AppDelegate
+        // スライダーの位置で動画を再生
+        appDelegate.player.seek(to: time, toleranceBefore: kCMTimeZero, toleranceAfter: kCMTimeZero)
+        
+    }
 }
 
