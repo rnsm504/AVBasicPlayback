@@ -51,6 +51,12 @@ class MusicVideosManager {
         }
     }
     
+    public func loop() {
+        if(musicVideos.count > 0) {
+            avset(index: index)
+        }
+    }
+    
     private func avset(index : Int) {
         let url = (musicVideos[index] as! Album).url
         player = AVPlayer(url: url)

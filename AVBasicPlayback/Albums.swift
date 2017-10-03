@@ -9,12 +9,16 @@
 import UIKit
 import MediaPlayer
 
+
+/// アルバム構成
 struct Album {
     var url : URL
     var title : NSString
     var artWork : Any
 }
 
+
+/// 動画リストを作成
 class Albums {
     
     var ary = NSMutableArray()
@@ -23,10 +27,12 @@ class Albums {
         let albumQuery = MPMediaQuery.songs()
         let albums = albumQuery.collections as [MPMediaItemCollection]!
         
+        // iTunesの中に音楽、動画がない場合は終了
         guard (albumQuery.collections as [MPMediaItemCollection]!) != nil else {
             return
         }
-        
+
+        // ハードの中にあるミュージックビデオのみを取り出し
         for album in albums! {
             let rv = album.representativeItem?.mediaType.rawValue
             if(rv == 2049 || rv == 2048){

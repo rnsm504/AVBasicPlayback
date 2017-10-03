@@ -11,10 +11,19 @@ import AVKit
 import AVFoundation
 import MediaPlayer
 
+
+extension UIColor {
+    struct orgClr {
+        private init() {}
+        static let loopOf = #colorLiteral(red: 0.5738074183, green: 0.5655357838, blue: 0, alpha: 1)
+    }
+}
+
 enum playerStateType {
     case play
     case pause
     case next
+    case loop
 }
 
 class PlayerState {
@@ -31,6 +40,7 @@ class ViewController: UIViewController {
     var mvm : MusicVideosManager!
     var playerItem : AVPlayerItem!
     var timeObserverToken: AnyObject?
+    var loopFlg : Bool = false
     
     @IBOutlet weak var playerView: PlayerView!
     @IBOutlet weak var titleLbl: UILabel!
@@ -40,6 +50,7 @@ class ViewController: UIViewController {
     @IBOutlet weak var videoSeekBar: UISlider!
     @IBOutlet weak var maxTimeLbl: UILabel!
     @IBOutlet weak var nowTimeLbl: UILabel!
+    @IBOutlet weak var loopButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -51,6 +62,8 @@ class ViewController: UIViewController {
         
         maxTimeLbl.text = ""
         nowTimeLbl.text = ""
+        
+        loopFlg = false
         
         //行数制御なし
         titleLbl.numberOfLines = 0
@@ -91,6 +104,7 @@ class ViewController: UIViewController {
         commandCenter.previousTrackCommand.addTarget(self, action: #selector(ViewController.backTrack(_:)))
         commandCenter.previousTrackCommand.isEnabled = true
         
+        // 最初の動画を準備
         let url = (mvm.musicVideos[0] as! Album).url as URL
         let player = AVPlayer(url: url)
 
@@ -124,6 +138,20 @@ class ViewController: UIViewController {
        backTrack(sender as AnyObject)
     }
 
+    
+    @IBAction func onClickLoop(_ sender: Any) {
+        
+        let button = sender as! UIButton
+        
+        loopFlg = !loopFlg
+        if(loopFlg) {
+            button.titleLabel?.textColor = UIColor.yellow
+            button.setTitleColor(UIColor.yellow, for: UIControlState.normal)
+        } else {
+            button.titleLabel?.textColor = UIColor.orgClr.loopOf
+            button.setTitleColor(UIColor.orgClr.loopOf, for: UIControlState.normal)
+        }
+    }
     
     @objc func play(_ sender : AnyObject) {
         
@@ -186,6 +214,22 @@ class ViewController: UIViewController {
             self.playerState.state = .play
             playButton.setTitle("pause", for: .normal)
             break;
+        case .loop:
+            // 同じ動画のリピート
+            appDelegate.player.pause()
+            
+            playerView.player = mvm.player
+            let title = (mvm.musicVideos[mvm.index] as! Album).title as String
+            titleLbl.text = title
+            appDelegate.player = playerView.player
+            
+            sliderSet()
+            
+            playerView.player?.play()
+            self.playerState.state = .play
+            
+            playButton.setTitle("pause", for: .normal)
+            break;
         }
     }
 
@@ -238,9 +282,17 @@ class ViewController: UIViewController {
             appDelegate.player?.removeTimeObserver(_timeObserverToken)
             self.timeObserverToken = nil
         }
-        // 次の動画
-        mvm.next()
-        viewSet(action: .next)
+        
+        // 無限ループが立ってるなら同じ動画を再生
+        if(loopFlg) {
+            mvm.loop()
+            viewSet(action: .loop)
+            
+        } else {
+            // 次の動画
+            mvm.next()
+            viewSet(action: .next)
+        }
     }
     
     /// スライドを動かした時に呼び出される
