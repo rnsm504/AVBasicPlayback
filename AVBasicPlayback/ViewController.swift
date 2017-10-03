@@ -144,6 +144,7 @@ class ViewController: UIViewController {
         let button = sender as! UIButton
         
         loopFlg = !loopFlg
+        
         if(loopFlg) {
             button.titleLabel?.textColor = UIColor.yellow
             button.setTitleColor(UIColor.yellow, for: UIControlState.normal)
@@ -300,7 +301,6 @@ class ViewController: UIViewController {
     /// - Parameter sender: UISliser
     @IBAction func slide(_ sender: UISlider) {
         
-//        print(sender.value)
         self.videoSeekBar.value = sender.value
         let time = CMTimeMakeWithSeconds(Float64(sender.value), Int32(NSEC_PER_SEC))
         
